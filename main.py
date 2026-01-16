@@ -51,3 +51,54 @@ class AgendaApp:
         # Barra lateral com listas de eventos.
         self.sidebar = ttk.Frame(self.root, width=200)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
+
+    def create_month_view(self, year, month):
+        # Cabeçalho com dias da semana.
+        days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+        for i, day in enumerate(days):
+            label = ttk.Label(self.month_frame, text=day, anchor="center",
+                              background="lightray", padding=5)
+            label.grid(row=0, column=i, sticky="ew")
+
+        # Calcular primeiro dia do mês.
+        first_day = datetime(year, month, 1)
+        # Começar na posição correta (ajustar para domingo=0)
+        start_col = (first_day.weekday() + 1) % 7
+
+        # Criar grid 6x7.
+        row = 1
+        col = start_col
+        days_in_month = self.get_days_in_month(year, month)
+
+        for day in range(1, days_in_month + 1):
+            date = datetime(year, month, day)
+            date_str = date.strftime("%Y-%m-%d")
+
+            # Frame para cada dia.
+            day_frame = ttk.Frame(self.month_frame, relief=tk.RAISED, borderwidth=1)
+
+            # Número do dia.
+            day_label = tk.Label(day_frame, text=str(day), anchor="nw")
+            day_label.pack(anchor="nw", padx=2)
+
+            # Eventos do dia (mostrar primeiros 2-3)
+            if date_str in self.events:
+                for event in self.events[date_str][:2]: # Mostra apenas 2
+                    event_label = ttk.Label(
+                        day_frame,
+                        text=f"·{event["title"][:10]}...",
+                        foreground=event['color'],
+                        font=("Arial", 8)
+                    )
+                    event_label.pack(fill=tk.X, padx=2)
+
+                col += 1
+                if col == 7:
+                    col = 0
+                    row += 1
+
+            # Configurar pesos das colunas
+            for i in range(7):
+                self.month_frame.grid_columnconfigure(i, weight=1)
+            for i in range(6): # 6 linhas.
+                self.month_frame.grid_rowconfigure(i+1, weight=1)
