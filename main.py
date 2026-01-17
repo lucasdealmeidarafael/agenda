@@ -102,3 +102,73 @@ class AgendaApp:
                 self.month_frame.grid_columnconfigure(i, weight=1)
             for i in range(6): # 6 linhas.
                 self.month_frame.grid_rowconfigure(i+1, weight=1)
+
+    def add_event_dialog(self, date=None):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Novo Evento")
+        dialog.geometry("400x450")
+
+        # Formulário.
+        ttk.Label(dialog, text="Título:").pack(anchor="w", padx=20, pady=(20, 5))
+        title_entry = ttk.Entry(dialog, width=40)
+        title_entry.pack(padx=20, pady=(0, 10))
+
+        ttk.Label(dialog, text="Descrição:").pack(anchor="w", padx=20, pady=(10, 5))
+        desc_text = tk.Text(dialog, height=5, width=40)
+        desc_text.pack(padx=20, pady=(0, 10))
+
+        # Data e hora.
+        date_frame = ttk.Frame(dialog)
+        date_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        ttk.Label(date_frame, text="Data:").grid(row=0, column=0, sticky="w")
+        date_entry = ttk.Entry(date_frame, width=12)
+        date_entry.grid(row=0, column=1, padx=(5, 20))
+        if date:
+            date_entry.insert(0, date.strftime("%d/%m/%Y"))
+
+        ttk.Label(date_frame, text="Hora:").grid(row=0, column=2, sticky="w")
+        time_entry = ttk.Entry(date_frame, width=8)
+        time_entry.grid(row=0, column=3)
+        time_entry.insert(0, "09:00")
+
+        # Categoria (combobox com cores)
+        ttk.Label(dialog, text="Categoria:").pack(anchor="w", padx=20, pady=(10, 5))
+        category_var = tk.StringVar()
+        category_combo = ttk.Combobox(dialog, textvariable=category_var, state="readonly")
+        category_combo['values'] = list(self.categories.keys())
+        category_combo.current(0)
+        category_combo.pack(padx=20, pady=(0, 10))
+
+        # Lembrete
+        ttk.Label(dialog, text="Lembrete (minutos antes):").pack(anchor="w", padx=20, pady=(10, 5))
+        reminder_var = tk.StringVar(value="15")
+        ttk.Entry(dialog, textvariable=reminder_var, width=10).pack(anchor="w", padx=20)
+
+        def save_event():
+            # Validar e salvar.
+            title = title_entry.get()
+            if not title:
+                messagebox.showerror("Erro", "O título é obrigatório!")
+                return
+            
+            # Salvar no dicionário de eventos.
+            date_str = datetime.strptime(date_entry.get(), "%d/%m/%Y").strftime("%Y-%m-%d")
+            event_data = {
+                "title": title,
+                "description": desc_text.get("1.0", tk.END).strip(),
+                "time": time_entry.get(),
+                "category": category_var.get(),
+                "color": self.categories[category_var.get()],
+                "reminder": int(reminder_var.get())
+            }
+
+            if date_str not in self.events:
+                self.events[date_str] = []
+            self.events[date_str].append(event_data)
+
+            self.save_data()
+            self.refresh_views()
+            dialog.destroy()
+
+        ttk.Button(dialog, text="Salvar", command=save_event).pack(padx=20)
