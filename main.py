@@ -3,6 +3,9 @@ from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
 import json
 import os
+import threading
+import time
+
 
 class AgendaApp:
     def __init__(self, root):
@@ -172,3 +175,13 @@ class AgendaApp:
             dialog.destroy()
 
         ttk.Button(dialog, text="Salvar", command=save_event).pack(padx=20)
+
+
+class NotificationManager:
+    def __init__(self, app):
+        self.app = app
+        self.running = True
+        self.thread = threading.Thread(target=self.check_reminders, daemon=True)
+        self.thread.start()
+
+    
