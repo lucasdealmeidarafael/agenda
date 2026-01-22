@@ -1,3 +1,4 @@
+from tkinter import Tk
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, timedelta
@@ -5,6 +6,16 @@ import json
 import os
 import threading
 import time
+
+janela = Tk()
+janela.title("Agenda")
+janela.geometry("510x510")
+janela.configure(bg="#feffff")
+
+ttk.Separator(janela, orient="horizontal").grid(row=0, columnspan=1, ipadx=272)
+
+style = ttk.Style(janela)
+style.theme_use("clam")
 
 
 class AgendaApp:
@@ -16,10 +27,17 @@ class AgendaApp:
             "Trabalho": "#FF6B6B",
             "Pessoal": "#4ECDC4",
             "Saúde": "#FFD166",
-            "Lazer": "#06D6AD",
+            "Lazer": "#06D6A0",
         }
+        self.current_date = datetime.now()
         self.load_data()
         self.setup_ui()
+        self.create_month_view(self.current_date.year, self.current_date.month)
+        self.notification_manager = NotificationManager(self)
+
+        # Botão de adicionar evento.
+        ttk.Button(self.control_frame, text="+ Novo Evento",
+                   command=lambda: self.add_event_dialog(self.current_date)).pack(side=tk.RIGHT, padx=5)
 
     def setup_ui(self):
         # Controles superiores.
@@ -54,6 +72,12 @@ class AgendaApp:
         # Barra lateral com listas de eventos.
         self.sidebar = ttk.Frame(self.root, width=200)
         self.sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=10)
+
+        # Adiciona filtros na sidebar.
+        self.create_category_filter()
+
+    def update_date_label(self):
+        """Atualiza o label com o mês/ano atual"""
 
     def create_month_view(self, year, month):
         # Cabeçalho com dias da semana.
@@ -184,4 +208,70 @@ class NotificationManager:
         self.thread = threading.Thread(target=self.check_reminders, daemon=True)
         self.thread.start()
 
-    
+    def check_reminders(self):
+        while self.running:
+            now = datetime.now()
+            for date_str, events in self.app.events.items():
+                for event in events:
+                    event_time = datetime.strptime(
+                        f"{date_str} {event['time']}",
+                        "%Y-%m-%d %H:%M"
+                    )
+                    reminder_time = event_time - timedelta(minutes=event['reminder'])
+
+                    # Verificar se é hora do lembrete.
+                    if now >= reminder_time and not event.get('notified', False):
+                        self.show_notification(event)
+                        event['notified'] = True
+
+                time.sleep(60) # Verifica a cada minuto.
+
+    def show_notification(self, event):
+        # Usar messagebox ou criar uma janela personalizada.
+        self.app.root.after(0, lambda:
+                            messagebox.showinfo(
+                                "Lembrete",
+                                f"{event['title']}\nHora: {event['time']}"
+                            ))
+        
+    def save_data(self):
+        data = {
+            "events": self.events,
+            "last_view": self.current_view,
+            "categories": self.categories
+        }
+        with open("agenda_data.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Backup automático.
+        backup_file = f"backup_agenda_{datetime.now().strftime('%Y%m%d')}.json"
+        with open(backup_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def load_data(self):
+        try:
+            if os.path.exists("agenda_data.json"):
+                with open("agenda_data.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.events = data.get("events",{})
+                    self.categories = data.get("categories", self.categories)
+        except Exception as e:
+            print(f"Erro ao carregar dados: {e}")
+
+    def create_category_filter(self):
+        filter_frame = ttk.LabelFrame(self.sidebar, text="Filtrar por Categoria")
+        filter_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.filter_vars = {}
+        for category, color in self.categories.items():
+            var = tk.BooleanVar(value=True)
+            cb = ttk.Checkbutton(
+                filter_frame,
+                text=category,
+                variable=var,
+                command=self.apply_filters
+            )
+            cb.pack(anchor="w", padx=5, pady=2)
+            self.filter_vars[category] = var
+
+janela.mainloop()
