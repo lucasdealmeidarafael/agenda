@@ -7,21 +7,13 @@ import os
 import threading
 import time
 
-janela = Tk()
-janela.title("Agenda")
-janela.geometry("510x510")
-janela.configure(bg="#feffff")
-
-ttk.Separator(janela, orient="horizontal").grid(row=0, columnspan=1, ipadx=272)
-
-style = ttk.Style(janela)
-style.theme_use("clam")
-
 
 class AgendaApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Agenda Pessoal")
+        self.root.geometry("800x600")
+        self.root.configure(bg="#feffff")
         self.events = {} #{data:[eventos]}
         self.categories = {
             "Trabalho": "#FF6B6B",
@@ -34,6 +26,9 @@ class AgendaApp:
         self.setup_ui()
         self.create_month_view(self.current_date.year, self.current_date.month)
         self.notification_manager = NotificationManager(self)
+
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
 
         # Botão de adicionar evento.
         ttk.Button(self.control_frame, text="+ Novo Evento",
@@ -97,7 +92,7 @@ class AgendaApp:
         days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
         for i, day in enumerate(days):
             label = ttk.Label(self.month_frame, text=day, anchor="center",
-                              background="lightray", padding=5)
+                              background="lightgray", padding=5)
             label.grid(row=0, column=i, sticky="ew")
 
         # Calcular primeiro dia do mês.
@@ -224,7 +219,8 @@ class AgendaApp:
                 "time": time_entry.get(),
                 "category": category_var.get(),
                 "color": self.categories[category_var.get()],
-                "reminder": int(reminder_var.get())
+                "reminder": int(reminder_var.get()),
+                "notified": False # Adicionado para controle de notificações.
             }
 
             if date_str not in self.events:
@@ -263,6 +259,26 @@ class AgendaApp:
                     self.categories = data.get("categories", self.categories)
         except Exception as e:
             print(f"Erro ao carregar dados: {e}")
+
+    def create_category_filter(self):
+        filter_frame = ttk.LabelFrame(self.sidebar, text="Filtrar por Categoria")
+        filter_frame.pack(fill=tk.X, padx=5, pady=5)
+
+        self.filter_vars = {}
+        for category, color in self.categories.items():
+            var = tk.BooleanVar(value=True)
+            cb = ttk.Checkbutton(
+                filter_frame,
+                text=category,
+                variable=var,
+                command=self.apply_filters
+            )
+            cb.pack(anchor="w", padx=5, pady=2)
+            self.filter_vars[category] = var
+
+    def apply_filters(self):
+        """Aplica os filtros selecionados."""
+        
 
 
 class NotificationManager:
@@ -338,4 +354,7 @@ class NotificationManager:
             cb.pack(anchor="w", padx=5, pady=2)
             self.filter_vars[category] = var
 
+
+janela = Tk()
+app = AgendaApp(janela)
 janela.mainloop()
