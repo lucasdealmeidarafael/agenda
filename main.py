@@ -78,8 +78,21 @@ class AgendaApp:
 
     def update_date_label(self):
         """Atualiza o label com o mês/ano atual"""
+        self.date_label.config(text=self.current_date.strftime("%B %Y"))
+
+    def get_days_in_month(self, year, month):
+        """Retornar o número de dias em um mês."""
+        if month == 12:
+            return 31
+        d1 = datetime(year, month, 1)
+        d2 = datetime(year, month + 1, 1)
+        return (d2 - d1).days
 
     def create_month_view(self, year, month):
+        # Limpa o frame antes de criar nova visualização.
+        for widget in self.month_frame.winfo_children():
+            widget.destroy()
+
         # Cabeçalho com dias da semana.
         days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
         for i, day in enumerate(days):
@@ -113,7 +126,7 @@ class AgendaApp:
                 for event in self.events[date_str][:2]: # Mostra apenas 2
                     event_label = ttk.Label(
                         day_frame,
-                        text=f"·{event["title"][:10]}...",
+                        text=f"·{event['title'][:10]}...",
                         foreground=event['color'],
                         font=("Arial", 8)
                     )
@@ -127,8 +140,32 @@ class AgendaApp:
             # Configurar pesos das colunas
             for i in range(7):
                 self.month_frame.grid_columnconfigure(i, weight=1)
-            for i in range(6): # 6 linhas.
-                self.month_frame.grid_rowconfigure(i+1, weight=1)
+            for i in range(7): # 6 linhas + cabeçalho.
+                self.month_frame.grid_rowconfigure(i, weight=1)
+
+    def prev_month(self):
+        """Navega para o mês anterior."""
+        # Vai para o último dia do mês anterior.
+        first_day = self.current_date.replace(day=1)
+        prev_month = first_day - timedelta(days=1)
+        self.current_date = prev_month.replace(day=1)
+        self.update_date_label()
+        self.create_month_view(self.current_date.year, self.current_date.month)
+        
+    def next_month(self):
+        """Navega para o próximo mês."""
+        if self.current_date.month == 12:
+            self.current_date = self.current_date.replace(year=self.current_date.year + 1, month=1)
+        else:
+            self.current_date = self.current_date.replace(month=self.current_date.month + 1)
+        self.update_date_label()
+        self.create_month_view(self.current_date.year, self.current_date.month)
+
+    def go_to_today(self):
+        """Volta para o mês atual."""
+        self.current_date = datetime.now()
+        self.update_date_label()
+        self.create_month_view(self.current_date.year, self.current_date.month)
 
     def add_event_dialog(self, date=None):
         dialog = tk.Toplevel(self.root)
@@ -199,6 +236,33 @@ class AgendaApp:
             dialog.destroy()
 
         ttk.Button(dialog, text="Salvar", command=save_event).pack(padx=20)
+
+    def refresh_views(self):
+        """Atualiza todas as visualizações."""
+        self.create_month_view(self.current_date.year, self.current_date.month)
+
+    def save_data(self):
+        data = {
+            "events": self.events,
+            "categories": self.categories
+        }
+        with open("agenda_data.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        # Backup automático.
+        backup_file = f"backup_agenda_{datetime.now().strftime('%Y%m%d')}.json"
+        with open(backup_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def load_data(self):
+        try:
+            if os.path.exists("agenda_data.json"):
+                with open("agenda_data.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.events = data.get("events", {})
+                    self.categories = data.get("categories", self.categories)
+        except Exception as e:
+            print(f"Erro ao carregar dados: {e}")
 
 
 class NotificationManager:
