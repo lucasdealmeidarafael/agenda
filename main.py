@@ -13,7 +13,7 @@ class AgendaApp:
         self.root = root
         self.root.title("Agenda Pessoal")
         self.root.geometry("800x600")
-        self.root.configure(bg="#feffff")
+        self.root.configure(bg="#122646")
         self.events = {} #{data:[eventos]}
         self.categories = {
             "Trabalho": "#FF6B6B",
