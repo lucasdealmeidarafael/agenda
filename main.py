@@ -14,6 +14,11 @@ class AgendaApp:
         self.root.title("Agenda Pessoal")
         self.root.geometry("800x600")
         self.root.configure(bg="#122646")
+
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+
+
         self.events = {} #{data:[eventos]}
         self.categories = {
             "Trabalho": "#FF6B6B",
@@ -27,12 +32,7 @@ class AgendaApp:
         self.create_month_view(self.current_date.year, self.current_date.month)
         self.notification_manager = NotificationManager(self)
 
-        style = ttk.Style(self.root)
-        style.theme_use("clam")
 
-        # Botão de adicionar evento.
-        ttk.Button(self.control_frame, text="+ Novo Evento",
-                   command=lambda: self.add_event_dialog(self.current_date)).pack(side=tk.RIGHT, padx=5)
 
     def setup_ui(self):
         # Controles superiores.
@@ -47,6 +47,13 @@ class AgendaApp:
         # Label do mês/ano
         self.date_label = ttk.Label(self.control_frame, text="", font=("Arial", 12))
         self.date_label.pack(side=tk.LEFT, padx=20)
+
+        # Botão de adicionar evento.
+        ttk.Button(self.control_frame, text="+ Novo Evento",
+                   command=lambda: self.add_event_dialog(self.current_date)).pack(side=tk.RIGHT, padx=5)
+        
+        # Separador
+        ttk.Separator(self.root, orient="horizontal").pack(fill=tk.X, padx=10, pady=5)
 
         # Abas de visualização.
         self.notebook = ttk.Notebook(self.root)
@@ -72,8 +79,11 @@ class AgendaApp:
         self.create_category_filter()
 
     def update_date_label(self):
-        """Atualiza o label com o mês/ano atual"""
-        self.date_label.config(text=self.current_date.strftime("%B %Y"))
+        """Atualiza o label com o mês/ano atual em português."""
+        meses = {
+            1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"
+        }
+        self.date_label.config(text=f"{meses[self.current_date.month]}{self.current_date.year}")
 
     def get_days_in_month(self, year, month):
         """Retornar o número de dias em um mês."""
@@ -111,6 +121,7 @@ class AgendaApp:
 
             # Frame para cada dia.
             day_frame = ttk.Frame(self.month_frame, relief=tk.RAISED, borderwidth=1)
+            day_frame.grid(row=row, column=col, sticky="nsew", padx=1, pady=1)
 
             # Número do dia.
             day_label = tk.Label(day_frame, text=str(day), anchor="nw")
@@ -205,31 +216,32 @@ class AgendaApp:
         ttk.Entry(dialog, textvariable=reminder_var, width=10).pack(anchor="w", padx=20)
 
         def save_event():
-            # Validar e salvar.
             title = title_entry.get()
             if not title:
                 messagebox.showerror("Erro", "O título é obrigatório!")
                 return
             
-            # Salvar no dicionário de eventos.
-            date_str = datetime.strptime(date_entry.get(), "%d/%m/%Y").strftime("%Y-%m-%d")
-            event_data = {
-                "title": title,
-                "description": desc_text.get("1.0", tk.END).strip(),
-                "time": time_entry.get(),
-                "category": category_var.get(),
-                "color": self.categories[category_var.get()],
-                "reminder": int(reminder_var.get()),
-                "notified": False # Adicionado para controle de notificações.
+            try:
+                date_str = datetime.strptime(date_entry.get(), "%d/%m/%Y").strftime("%Y-%m-%d")
+                event_data = {
+                    "title": title,
+                    "description": desc_text.get("1.0", tk.END).strip(),
+                    "time": time_entry.get(),
+                    "category": category_var.get(),
+                    "color": self.categories[category_var.get()],
+                    "reminder": int(reminder_var.get()),
+                    "notified": False # Adicionado para controle de notificações.
             }
 
-            if date_str not in self.events:
-                self.events[date_str] = []
-            self.events[date_str].append(event_data)
+                if date_str not in self.events:
+                    self.events[date_str] = []
+                self.events[date_str].append(event_data)
 
-            self.save_data()
-            self.refresh_views()
-            dialog.destroy()
+                self.save_data()
+                self.refresh_views()
+                dialog.destroy()
+            except ValueError:
+                messagebox.showerror("Erro", "Formato de data inválido! Use DD/MM/AAAA")
 
         ttk.Button(dialog, text="Salvar", command=save_event).pack(padx=20)
 
@@ -293,16 +305,20 @@ class NotificationManager:
             now = datetime.now()
             for date_str, events in self.app.events.items():
                 for event in events:
-                    event_time = datetime.strptime(
-                        f"{date_str} {event['time']}",
-                        "%Y-%m-%d %H:%M"
-                    )
-                    reminder_time = event_time - timedelta(minutes=event['reminder'])
+                    try:
+                        event_time = datetime.strptime(
+                            f"{date_str} {event['time']}",
+                            "%Y-%m-%d %H:%M"
+                        )
+                        reminder_time = event_time - timedelta(minutes=event['reminder'])
 
-                    # Verificar se é hora do lembrete.
-                    if now >= reminder_time and not event.get('notified', False):
-                        self.show_notification(event)
-                        event['notified'] = True
+                        # Verificar se é hora do lembrete.
+                        if now >= reminder_time and not event.get('notified', False):
+                            self.show_notification(event)
+                            event['notified'] = True
+                    except:
+                        # Ignora eventos com formato inválido.
+                        pass
 
                 time.sleep(60) # Verifica a cada minuto.
 
