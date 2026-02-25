@@ -6,6 +6,7 @@ import json
 import os
 import threading
 import time
+import calendar
 
 
 class AgendaApp:
@@ -44,9 +45,22 @@ class AgendaApp:
         ttk.Button(self.control_frame, text="Hoje", command=self.go_to_today).pack(side=tk.LEFT, padx=5)
         ttk.Button(self.control_frame, text="▶", command=self.next_month).pack(side=tk.LEFT)
 
+        # Seletor de mês e ano
+        ttk.Label(self.control_frame, text="Mês:").pack(side=tk.LEFT, padx=(20,2))
+        self.month_combo = ttk.Combobox(self.control_frame, values=list(range(1,13)), width=3, state="readonly")
+        self.month_combo.pack(side=tk.LEFT)
+        self.month_combo.bind("<<ComboboxSelected>>",self.on_month_year_change)
+
+        ttk.Label(self.control_frame, text="Ano:").pack(side=tk.LEFT, padx=(5,2))
+        anos = list(range(self.current_date.year - 10, self.current_date.year + 11))
+        self.year_combo = ttk.Combobox(self.control_frame, values=anos, width=5, state="readonly")
+        self.year_combo.pack(side=tk.LEFT)
+        self.year_combo.bind("<<ComboboxSelected>>", self.on_month_year_change)
+
         # Label do mês/ano
         self.date_label = ttk.Label(self.control_frame, text="", font=("Arial", 12))
         self.date_label.pack(side=tk.LEFT, padx=20)
+        self.update_date_label()
 
         # Botão de adicionar evento.
         ttk.Button(self.control_frame, text="+ Novo Evento",
@@ -84,6 +98,21 @@ class AgendaApp:
             1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"
         }
         self.date_label.config(text=f"{meses[self.current_date.month]}{self.current_date.year}")
+
+        # Atualizar combos
+        self.month_combo.set(self.current_date.month)
+        self.year_combo.set(self.current_date.year)
+
+    def on_month_year_change(self, event=None):
+        """Callback quando mês ou ano é alterado via combobox"""
+        try:
+            novo_mes = int(self.month_combo.get())
+            novo_ano = int(self.year_combo.get())
+            self.current_date = self.current_date_replace(year=novo_ano, month=novo_mes)
+            self.update_date_label()
+            self.create_month_view(novo_ano, novo_mes)
+        except:
+            pass # Ignora se não conseguir.
 
     def get_days_in_month(self, year, month):
         """Retornar o número de dias em um mês."""
