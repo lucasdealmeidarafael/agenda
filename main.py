@@ -15,12 +15,11 @@ class AgendaApp:
         self.root.title("Agenda Pessoal")
         self.root.geometry("800x600")
         self.root.configure(bg="#122646")
-
+        
         style = ttk.Style(self.root)
         style.theme_use("clam")
-
-
-        self.events = {} #{data:[eventos]}
+        
+        self.events = {}  # {data: [eventos]}
         self.categories = {
             "Trabalho": "#FF6B6B",
             "Pessoal": "#4ECDC4",
@@ -33,8 +32,6 @@ class AgendaApp:
         self.create_month_view(self.current_date.year, self.current_date.month)
         self.notification_manager = NotificationManager(self)
 
-
-
     def setup_ui(self):
         # Controles superiores.
         self.control_frame = ttk.Frame(self.root)
@@ -46,12 +43,12 @@ class AgendaApp:
         ttk.Button(self.control_frame, text="▶", command=self.next_month).pack(side=tk.LEFT)
 
         # Seletor de mês e ano
-        ttk.Label(self.control_frame, text="Mês:").pack(side=tk.LEFT, padx=(20,2))
-        self.month_combo = ttk.Combobox(self.control_frame, values=list(range(1,13)), width=3, state="readonly")
+        ttk.Label(self.control_frame, text="Mês:").pack(side=tk.LEFT, padx=(20, 2))
+        self.month_combo = ttk.Combobox(self.control_frame, values=list(range(1, 13)), width=3, state="readonly")
         self.month_combo.pack(side=tk.LEFT)
-        self.month_combo.bind("<<ComboboxSelected>>",self.on_month_year_change)
+        self.month_combo.bind("<<ComboboxSelected>>", self.on_month_year_change)
 
-        ttk.Label(self.control_frame, text="Ano:").pack(side=tk.LEFT, padx=(5,2))
+        ttk.Label(self.control_frame, text="Ano:").pack(side=tk.LEFT, padx=(5, 2))
         anos = list(range(self.current_date.year - 10, self.current_date.year + 11))
         self.year_combo = ttk.Combobox(self.control_frame, values=anos, width=5, state="readonly")
         self.year_combo.pack(side=tk.LEFT)
@@ -65,7 +62,7 @@ class AgendaApp:
         # Botão de adicionar evento.
         ttk.Button(self.control_frame, text="+ Novo Evento",
                    command=lambda: self.add_event_dialog(self.current_date)).pack(side=tk.RIGHT, padx=5)
-        
+
         # Separador
         ttk.Separator(self.root, orient="horizontal").pack(fill=tk.X, padx=10, pady=5)
 
@@ -95,35 +92,33 @@ class AgendaApp:
     def update_date_label(self):
         """Atualiza o label com o mês/ano atual em português."""
         meses = {
-            1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"
+            1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+            5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+            9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
         }
-        self.date_label.config(text=f"{meses[self.current_date.month]}{self.current_date.year}")
-
+        self.date_label.config(text=f"{meses[self.current_date.month]} {self.current_date.year}")
         # Atualizar combos
         self.month_combo.set(self.current_date.month)
         self.year_combo.set(self.current_date.year)
 
     def on_month_year_change(self, event=None):
-        """Callback quando mês ou ano é alterado via combobox"""
+        """Callback quando mês ou ano é alterado via combobox."""
         try:
             novo_mes = int(self.month_combo.get())
             novo_ano = int(self.year_combo.get())
-            self.current_date = self.current_date_replace(year=novo_ano, month=novo_mes)
+            self.current_date = self.current_date.replace(year=novo_ano, month=novo_mes)
             self.update_date_label()
             self.create_month_view(novo_ano, novo_mes)
         except:
-            pass # Ignora se não conseguir.
+            pass  # ignora se não conseguir
 
     def get_days_in_month(self, year, month):
-        """Retornar o número de dias em um mês."""
-        if month == 12:
-            return 31
-        d1 = datetime(year, month, 1)
-        d2 = datetime(year, month + 1, 1)
-        return (d2 - d1).days
+        """Retorna o número de dias em um mês."""
+        return calendar.monthrange(year, month)[1]
 
     def create_month_view(self, year, month):
-        # Limpa o frame antes de criar nova visualização.
+        """Cria a visualização mensal, incluindo dias do mês anterior e próximo para preencher o grid 6x7."""
+        # Limpa o frame
         for widget in self.month_frame.winfo_children():
             widget.destroy()
 
@@ -134,59 +129,57 @@ class AgendaApp:
                               background="lightgray", padding=5)
             label.grid(row=0, column=i, sticky="ew")
 
-        # Calcular primeiro dia do mês.
-        first_day = datetime(year, month, 1)
-        # Começar na posição correta (ajustar para domingo=0)
-        start_col = (first_day.weekday() + 1) % 7
+        # Obter informações do calendário
+        cal = calendar.monthcalendar(year, month)  # lista de semanas, cada semana é lista de dias (0 se for de outro mês)
+        
+        # Preencher o grid
+        for week_idx, week in enumerate(cal):
+            for day_idx, day in enumerate(week):
+                if day == 0:
+                    # Dia vazio - podemos mostrar em branco ou opcionalmente mostrar dias dos meses adjacentes
+                    # Vou deixar vazio, mas pode ser personalizado
+                    day_frame = tk.Frame(self.month_frame, relief=tk.RAISED, borderwidth=1, bg="#f0f0f0")
+                    day_frame.grid(row=week_idx+1, column=day_idx, sticky="nsew", padx=1, pady=1)
+                    # Não adiciona número
+                else:
+                    date = datetime(year, month, day)
+                    date_str = date.strftime("%Y-%m-%d")
 
-        # Criar grid 6x7.
-        row = 1
-        col = start_col
-        days_in_month = self.get_days_in_month(year, month)
+                    # Frame para cada dia.
+                    day_frame = tk.Frame(self.month_frame, relief=tk.RAISED, borderwidth=1)
+                    day_frame.grid(row=week_idx+1, column=day_idx, sticky="nsew", padx=1, pady=1)
 
-        for day in range(1, days_in_month + 1):
-            date = datetime(year, month, day)
-            date_str = date.strftime("%Y-%m-%d")
+                    # Número do dia.
+                    day_label = tk.Label(day_frame, text=str(day), anchor="nw")
+                    day_label.pack(anchor="nw", padx=2)
 
-            # Frame para cada dia.
-            day_frame = ttk.Frame(self.month_frame, relief=tk.RAISED, borderwidth=1)
-            day_frame.grid(row=row, column=col, sticky="nsew", padx=1, pady=1)
+                    # Eventos do dia
+                    if date_str in self.events:
+                        for event in self.events[date_str][:2]:  # mostra no máximo 2
+                            event_label = tk.Label(
+                                day_frame,
+                                text=f"·{event['title'][:10]}...",
+                                foreground=event['color'],
+                                font=("Arial", 8)
+                            )
+                            event_label.pack(fill=tk.X, padx=2)
 
-            # Número do dia.
-            day_label = tk.Label(day_frame, text=str(day), anchor="nw")
-            day_label.pack(anchor="nw", padx=2)
-
-            # Eventos do dia (mostrar primeiros 2-3)
-            if date_str in self.events:
-                for event in self.events[date_str][:2]: # Mostra apenas 2
-                    event_label = ttk.Label(
-                        day_frame,
-                        text=f"·{event['title'][:10]}...",
-                        foreground=event['color'],
-                        font=("Arial", 8)
-                    )
-                    event_label.pack(fill=tk.X, padx=2)
-
-                col += 1
-                if col == 7:
-                    col = 0
-                    row += 1
-
-            # Configurar pesos das colunas
-            for i in range(7):
-                self.month_frame.grid_columnconfigure(i, weight=1)
-            for i in range(7): # 6 linhas + cabeçalho.
-                self.month_frame.grid_rowconfigure(i, weight=1)
+        # Configurar pesos das colunas
+        for i in range(7):
+            self.month_frame.grid_columnconfigure(i, weight=1)
+        # Configurar pesos das linhas (cabeçalho + até 6 linhas)
+        for i in range(7):
+            self.month_frame.grid_rowconfigure(i, weight=1)
 
     def prev_month(self):
         """Navega para o mês anterior."""
-        # Vai para o último dia do mês anterior.
-        first_day = self.current_date.replace(day=1)
-        prev_month = first_day - timedelta(days=1)
-        self.current_date = prev_month.replace(day=1)
+        if self.current_date.month == 1:
+            self.current_date = self.current_date.replace(year=self.current_date.year - 1, month=12)
+        else:
+            self.current_date = self.current_date.replace(month=self.current_date.month - 1)
         self.update_date_label()
         self.create_month_view(self.current_date.year, self.current_date.month)
-        
+
     def next_month(self):
         """Navega para o próximo mês."""
         if self.current_date.month == 12:
@@ -231,7 +224,7 @@ class AgendaApp:
         time_entry.grid(row=0, column=3)
         time_entry.insert(0, "09:00")
 
-        # Categoria (combobox com cores)
+        # Categoria
         ttk.Label(dialog, text="Categoria:").pack(anchor="w", padx=20, pady=(10, 5))
         category_var = tk.StringVar()
         category_combo = ttk.Combobox(dialog, textvariable=category_var, state="readonly")
@@ -249,7 +242,7 @@ class AgendaApp:
             if not title:
                 messagebox.showerror("Erro", "O título é obrigatório!")
                 return
-            
+
             try:
                 date_str = datetime.strptime(date_entry.get(), "%d/%m/%Y").strftime("%Y-%m-%d")
                 event_data = {
@@ -259,8 +252,8 @@ class AgendaApp:
                     "category": category_var.get(),
                     "color": self.categories[category_var.get()],
                     "reminder": int(reminder_var.get()),
-                    "notified": False # Adicionado para controle de notificações.
-            }
+                    "notified": False
+                }
 
                 if date_str not in self.events:
                     self.events[date_str] = []
@@ -272,7 +265,7 @@ class AgendaApp:
             except ValueError:
                 messagebox.showerror("Erro", "Formato de data inválido! Use DD/MM/AAAA")
 
-        ttk.Button(dialog, text="Salvar", command=save_event).pack(padx=20)
+        ttk.Button(dialog, text="Salvar", command=save_event).pack(pady=20)
 
     def refresh_views(self):
         """Atualiza todas as visualizações."""
@@ -319,7 +312,8 @@ class AgendaApp:
 
     def apply_filters(self):
         """Aplica os filtros selecionados."""
-        
+        # A implementar futuramente
+        pass
 
 
 class NotificationManager:
@@ -341,63 +335,20 @@ class NotificationManager:
                         )
                         reminder_time = event_time - timedelta(minutes=event['reminder'])
 
-                        # Verificar se é hora do lembrete.
                         if now >= reminder_time and not event.get('notified', False):
                             self.show_notification(event)
                             event['notified'] = True
                     except:
-                        # Ignora eventos com formato inválido.
+                        # Ignora eventos com formato inválido
                         pass
-
-                time.sleep(60) # Verifica a cada minuto.
+            time.sleep(60)
 
     def show_notification(self, event):
-        # Usar messagebox ou criar uma janela personalizada.
         self.app.root.after(0, lambda:
                             messagebox.showinfo(
                                 "Lembrete",
                                 f"{event['title']}\nHora: {event['time']}"
                             ))
-        
-    def save_data(self):
-        data = {
-            "events": self.events,
-            "last_view": self.current_view,
-            "categories": self.categories
-        }
-        with open("agenda_data.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-        # Backup automático.
-        backup_file = f"backup_agenda_{datetime.now().strftime('%Y%m%d')}.json"
-        with open(backup_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-    def load_data(self):
-        try:
-            if os.path.exists("agenda_data.json"):
-                with open("agenda_data.json", "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.events = data.get("events",{})
-                    self.categories = data.get("categories", self.categories)
-        except Exception as e:
-            print(f"Erro ao carregar dados: {e}")
-
-    def create_category_filter(self):
-        filter_frame = ttk.LabelFrame(self.sidebar, text="Filtrar por Categoria")
-        filter_frame.pack(fill=tk.X, padx=5, pady=5)
-
-        self.filter_vars = {}
-        for category, color in self.categories.items():
-            var = tk.BooleanVar(value=True)
-            cb = ttk.Checkbutton(
-                filter_frame,
-                text=category,
-                variable=var,
-                command=self.apply_filters
-            )
-            cb.pack(anchor="w", padx=5, pady=2)
-            self.filter_vars[category] = var
 
 
 janela = Tk()
